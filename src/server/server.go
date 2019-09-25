@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"strings"
  
 	"../config"
@@ -12,14 +11,11 @@ import (
  
 func main() {
 
-	address := config.SERVER_IP + ":" + strconv.Itoa(config.SERVER_PORT)
-	addr, err := net.ResolveUDPAddr("udp", address)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
- 
-	conn, err := net.ListenUDP("udp", addr)
+      conn, err := net.ListenUDP("udp4", &net.UDPAddr{
+        IP:   net.IPv4(0, 0, 0, 0),
+        Port: config.SERVER_PORT,
+    })
+
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

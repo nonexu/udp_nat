@@ -1,8 +1,8 @@
 package config
  
 const (
-	SERVER_IP       = "localhost"//"116.62.164.183"
-	SERVER_PORT     = 10001
+	SERVER_IP       = "localhost"
+	SERVER_PORT     = 10002
 	MAX_LEN        = 10
 )
 
