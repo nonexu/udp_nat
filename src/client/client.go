@@ -11,40 +11,42 @@ import (
 	"encoding/json"
 	"strconv"
 	"time"
+	"strings"
 )
 
 var (
 	conns map[string]net.Conn
+	srcAddr *net.UDPAddr
+	dstAddr *net.UDPAddr
+	conn net.Conn
 )
 
 func init() {
 	conns = make(map[string]net.Conn)
+	srcAddr = &net.UDPAddr{IP: net.IPv4zero, Port: 10005}
+	dstAddr = &net.UDPAddr{IP: net.ParseIP(config.SERVER_IP), Port: config.SERVER_PORT}
 }
 
 func main() {
-	serverAddr := config.SERVER_IP + ":" + strconv.Itoa(config.SERVER_PORT)
-	conn, err := net.Dial("udp", serverAddr)
+	var err error
+	conn, err = net.DialUDP("udp", srcAddr, dstAddr)
 	misc.CheckError(err)
 	defer conn.Close()
-	fmt.Println(serverAddr)
 
-	go func() {
-		for {
+	i := 1
+	for {
+		time.Sleep(time.Second * 1)
+		line := fmt.Sprintf("send message :%d", i)
+		conn.Write([]byte(line))
+		i++
 			buff := make([]byte, 1000)
 			_, err := conn.Read(buff)
 			if err != nil {
 				fmt.Println(err)
 			} else {
 				msgHandle(buff)
-			}
 		}
-	}()
-	i := 1
-	for {
-		time.Sleep(time.Second * 3)
-		line := fmt.Sprintf("send message :%d", i)
-		conn.Write([]byte(line))
-		i++
+
 	}
 }
 
@@ -56,7 +58,6 @@ func msgHandle(msg []byte) {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println(msgInfo)
 	switch msgInfo.Type {
 	case misc.CLUSTER_TYPE:
 		clusterTypeHandle(msgInfo.Data)
@@ -86,24 +87,40 @@ func clusterMsgHandle(msg string) {
 	fmt.Println(msg)
 }
 
+func parse(address string) *net.UDPAddr{
+     t := strings.Split(address, ":")
+     port, _ := strconv.Atoi(t[1])
+	return &net.UDPAddr{IP: net.ParseIP(t[0]), Port: port}
+}
+
 func sendUdpMsg(address string) {
-	conn, ok := conns[address]
+	otherdstAddr := parse(address)
+	conn.Close()
 	var err error
-	if !ok {
-		conn, err = net.Dial("udp", address)
-		if err != nil {
-			fmt.Println(err)
-			return
+	conn, err = net.DialUDP("udp", srcAddr, otherdstAddr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(srcAddr,otherdstAddr)
+	go read()
+	for {
+		time.Sleep(time.Second*3)
+		info := &misc.Msg{
+			misc.CLUSTER_MSG,
+			"hello",
 		}
-		conns[address] = conn
+		data, _ := json.Marshal(info)
+		n, err := conn.Write(data)
+		fmt.Println(n ,err)
 	}
+}
 
-	info := &misc.Msg{
-		misc.CLUSTER_MSG,
-		"hello",
+func read() {
+	for {
+		buff := make([]byte, 100)
+		_, err := conn.Read(buff)
+		fmt.Println(string(buff), err)
+
 	}
-
-	data, err := json.Marshal(info)
-	n, err := conn.Write(data)
-	fmt.Println(n, err)
 }
